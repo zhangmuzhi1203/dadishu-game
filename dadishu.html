@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>打地鼠进阶版：多个洞口+连击</title>
+    <style>
+      canvas {
+        display: block;
+        margin: 20px auto;
+        border: 2px solid #444;
+        background-color: #f0f0f0;
+      }
+      #info {
+        text-align: center;
+        font-size: 20px;
+        margin-top: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="info">分数：0 ｜ 时间：30</div>
+    <canvas id="canvas" width="600" height="400"></canvas>
+
+    <script>
+      const canvas = document.getElementById("canvas");
+      const ctx = canvas.getContext("2d");
+      const info = document.getElementById("info");
+
+      let score = 0;
+      let timeLeft = 30;
+      let gameOver = false;
+      let lastHitTime = 0;
+      let moleInterval = 1000; // 初始刷新频率
+      let moleAliveTime = 900;
+
+      const moleImg = new Image();
+      moleImg.src = "./images/dishu.png";
+
+      // 定义多个固定洞口位置
+      const molePositions = [
+        { x: 50, y: 50 },
+        { x: 250, y: 50 },
+        { x: 450, y: 50 },
+        { x: 100, y: 200 },
+        { x: 300, y: 200 },
+        { x: 500, y: 200 },
+      ];
+
+      const moles = molePositions.map((pos) => ({
+        ...pos,
+        width: 60,
+        height: 60,
+        visible: false,
+      }));
+
+      function showRandomMoles() {
+        if (gameOver) return;
+        moles.forEach((m) => (m.visible = false));
+
+        const count = Math.random() > 0.7 ? 2 : 1;
+        const shuffled = [...moles].sort(() => 0.5 - Math.random());
+
+        for (let i = 0; i < count; i++) {
+          shuffled[i].visible = true;
+          setTimeout(() => (shuffled[i].visible = false), moleAliveTime);
+        }
+      }
+
+      function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        moles.forEach((mole) => {
+          if (mole.visible) {
+            ctx.drawImage(moleImg, mole.x, mole.y, mole.width, mole.height);
+          }
+        });
+
+        if (gameOver) {
+          ctx.fillStyle = "red";
+          ctx.font = "bold 36px Arial";
+          ctx.textAlign = "center";
+
+          let message = "";
+          if (score > 40) {
+            message = "你小子可以有点东西";
+          } else {
+            message = "老弟你行不行啊";
+          }
+
+          ctx.fillText(message, canvas.width / 2, canvas.height / 2 - 20);
+          ctx.fillText(
+            "游戏结束！得分：" + score,
+            canvas.width / 2,
+            canvas.height / 2 + 30
+          );
+        }
+
+        requestAnimationFrame(draw);
+      }
+
+      canvas.addEventListener("click", (e) => {
+        if (gameOver) return;
+        const { offsetX, offsetY } = e;
+        for (let mole of moles) {
+          if (!mole.visible) continue;
+          if (
+            offsetX >= mole.x &&
+            offsetX <= mole.x + mole.width &&
+            offsetY >= mole.y &&
+            offsetY <= mole.y + mole.height
+          ) {
+            const now = Date.now();
+            const combo = now - lastHitTime < 1000;
+            score += combo ? 2 : 1;
+            lastHitTime = now;
+            mole.visible = false;
+            hitAudio.play();
+
+            // 动态加速：每10分加快一次
+            if (score % 10 === 0) {
+              moleInterval = Math.max(400, moleInterval - 100);
+              moleAliveTime = Math.max(300, moleAliveTime - 100);
+              restartMoleTimer();
+            }
+            updateInfo();
+            break;
+          }
+        }
+      });
+
+      function updateInfo() {
+        info.textContent = `分数：${score} ｜ 时间：${timeLeft}`;
+      }
+
+      let moleTimer = setInterval(showRandomMoles, moleInterval);
+
+      function restartMoleTimer() {
+        clearInterval(moleTimer);
+        moleTimer = setInterval(showRandomMoles, moleInterval);
+      }
+
+      const countdown = setInterval(() => {
+        if (timeLeft <= 0) {
+          clearInterval(countdown);
+          clearInterval(moleTimer);
+          gameOver = true;
+          moles.forEach((m) => (m.visible = false));
+          updateInfo();
+        } else {
+          timeLeft--;
+          updateInfo();
+        }
+      }, 1000);
+
+      // 启动动画
+      moleImg.onload = () => {
+        draw();
+      };
+    </script>
+  </body>
+</html>
